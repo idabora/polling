@@ -1,38 +1,25 @@
-const { Partitioners } = require('kafkajs');
 const { kafka } = require('./client');
-const readline = require('readline');
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-async function producerFunc() {
-    const producer = kafka.producer({ createPartitioner: Partitioners.DefaultPartitioner })
+async function castVote(pollId, optionIndex, voteData) {
+    const producer = kafka.producer();
 
     await producer.connect();
 
-    rl.setPrompt("> ");
-    rl.prompt();
+    const topicName = `poll_${pollId}`;
+    console.log(`Casting vote for Poll ID ${pollId}, Option ${optionIndex}`);
 
-    rl.on('line', async function (line) {
-        const [riderName, location] = line.split(" ");
-        console.log("*************",location);
-        await producer.send({
-            topic: 'gogogo',
-            messages: [
-                {
-                    partition: location.toLowerCase() === 'north'?0:1,
-                    key: 'location-update',
-                    value: JSON.stringify({ name: riderName, location })
-                }
-            ]
-        });
-    }).on('close', async () => {
-        
-        await producer.disconnect();
-    })
+    await producer.send({
+        topic: topicName,
+        messages: [
+            {
+                partition: optionIndex, // Send to the partition corresponding to the option
+                value: JSON.stringify(voteData),
+            },
+        ],
+    });
 
+    console.log(`Vote cast to topic ${topicName}, partition ${optionIndex}`);
+    await producer.disconnect();
 }
 
-producerFunc();
+module.exports = { castVote };
