@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Polls</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Live Polling System</h1>
+    </header>
+
+    <main>
+        <!-- Poll Section -->
+        <section id="polls-section">
+            <h2>Polls</h2>
+            <div id="polls-container">
+                <!-- Polls will be dynamically added here -->
+            </div>
+        </section>
+
+        <!-- Leaderboard Section -->
+        <section id="leaderboard-section">
+            <h2>Leaderboard</h2>
+            <ul id="leaderboard">
+                <!-- Leaderboard data will be dynamically added here -->
+            </ul>
+        </section>
+    </main>
+
+    <!-- Poll Creation Form -->
+    <footer>
+        <h2>Create a New Poll</h2>
+        <form id="poll-form">
+            <label for="question">Question:</label>
+            <input type="text" id="question" required />
+            <label for="options">Options (comma-separated):</label>
+            <input type="text" id="options" required />
+            <button type="submit">Create Poll</button>
+        </form>
+    </footer>
+
+    <script src="index.js"></script>
+</body>
+
+</html>
