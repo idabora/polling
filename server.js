@@ -1,6 +1,6 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const http = require("http");
+require('./connection/connection')
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require('path');
@@ -13,10 +13,7 @@ const Leaderboard = require("./models/leaderboard");
 
 const producer = kafka.producer();
 producer.connect();
-require("dotenv").config();
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("MongoDB connected"))
-    .catch(err => console.error("MongoDB connection error:", err));
+
 
 const app = express();
 const server = http.createServer(app);
