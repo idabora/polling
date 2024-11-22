@@ -1,23 +1,18 @@
 // Generate a unique user ID for each window or tab
 let userId = localStorage.getItem('userId');
 if (!userId) {
-    // Generate a random user ID if none exists
-    // userId = `user_${Math.random().toString(36).substr(2, 9)}`;
     userId = '121'
-    localStorage.setItem('userId', userId);  // Save it so that the same user ID is used across sessions/tabs
+    localStorage.setItem('userId', userId);
 }
 
-// Connect to the WebSocket server
 const socket = io("http://localhost:3000");
 
-// Get DOM elements for polls, leaderboard, and form
 const pollsContainer = document.getElementById("polls-container");
 const leaderboardContainer = document.getElementById("leaderboard");
 const pollForm = document.getElementById("poll-form");
 const questionInput = document.getElementById("question");
 const optionsInput = document.getElementById("options");
 
-// Fetch the polls from the backend
 async function fetchPolls() {
     try {
         const response = await fetch("http://localhost:3000/polls");
@@ -28,8 +23,8 @@ async function fetchPolls() {
     }
 }
 
-// Display polls in the HTML
 function displayPolls(polls) {
+    console.log("yeyeyeye")
     pollsContainer.innerHTML = polls.map((poll) => `
     <div class="poll">
       <h3>${poll.question}</h3>
@@ -42,58 +37,55 @@ function displayPolls(polls) {
       </div>
     </div>
   `).join('');
+    console.log("DONENNENE")
 }
 
-// Display leaderboard data
 function displayLeaderboard(leaderboard) {
-    console.log("&&&&&&&&&&&&&&", Array.isArray(leaderboard));
+    // console.log("&&&&&&&&&&&&&&", Array.isArray(leaderboard));
 
     if (Array.isArray(leaderboard)) {
-        leaderboard.map((event) => {
-            leaderboardContainer.innerHTML =
-                `<li>${event.question} Ans> ${event.text}: ${event.votesCast} votes</li>
-        `;
-        })
+        leaderboardContainer.innerHTML = leaderboard.map((entry) => `
+            <li>
+              <strong>Question:</strong> ${entry.question}<br>
+              <strong>Answer:</strong> ${entry.text}<br>
+              <strong>Votes:</strong> ${entry.votesCast}
+            </li>
+          `).join('');
+
     } else {
-        console.log("inside else",leaderboard);
-        leaderboardContainer.innerHTML =
-            `<li>${leaderboard.question} Ans> ${leaderboard.text}: ${leaderboard.votesCast} votes</li>
-        `;
+        console.log("inside else", leaderboard);
+        leaderboardContainer.innerHTML = `
+  <li>
+    <strong>Question:</strong> ${leaderboard.question}<br>
+    <strong>Answer:</strong> ${leaderboard.text}<br>
+    <strong>Votes:</strong> ${leaderboard.votesCast}
+  </li>
+`;
+
     }
 }
 
-// Cast a vote for a given poll and option
-function castVote(pollId, optionId,question,text) {
-    // Emit the vote to the server with the unique userId
+function castVote(pollId, optionId, question, text) {
     socket.emit("cast_vote", {
         pollId,
         optionId,
-        userId: userId,
         question,
-        text
+        text,
+        userId: userId
     });
 }
 
-// Handle real-time updates for polls and leaderboard
 socket.on("poll_updated", (updatedPoll) => {
     console.log("Poll updated:", updatedPoll);
-    fetchPolls(); // Refresh polls when a vote is cast or poll is updated
+    fetchPolls();
 });
 
-// Handle real-time updates for polls and leaderboard
 socket.on("leaderboard_updated", (updatedLeaderboard) => {
     console.log("Leaderboard updated:", updatedLeaderboard);
-    // Assuming leaderboard is now an array, you can safely call map()
-    // if (Array.isArray(updatedLeaderboard)) {
     displayLeaderboard(updatedLeaderboard);
-    // } else {
-    // console.error("Leaderboard is not an array");
-    // }
 });
 
 
-// Handle form submission for creating a new poll
-// Handle form submission for creating a new poll
 pollForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -106,7 +98,6 @@ pollForm.addEventListener("submit", async (event) => {
     }
 
     try {
-        // Send the new poll data to the server to create it
         const response = await fetch("http://localhost:3000/polls", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -116,10 +107,8 @@ pollForm.addEventListener("submit", async (event) => {
         const newPoll = await response.json();
         console.log("New poll created:", newPoll);
 
-        // Emit the new poll to all connected clients via WebSocket
-        socket.emit("new_poll", newPoll);
+        // socket.emit("new_poll", newPoll);
 
-        // Reset the form
         pollForm.reset();
     } catch (error) {
         console.error("Error creating poll:", error);
@@ -133,20 +122,14 @@ async function gg() {
     });
 
     const newPoll = await response.json();
-    console.log(Array.isArray(newPoll).length>0)
-    if(Array.isArray(newPoll).length>0){
-        console.log("YES")
-        displayLeaderboard(newPoll);
-    }
+    console.log(Array.isArray(newPoll).length > 0)
+    displayLeaderboard(newPoll);
 }
 
-// Initialize the app by fetching the polls and the leaderboard
 function init() {
     fetchPolls();
     gg();
-    // Optionally, you can set an interval to refresh polls and leaderboard every few seconds
-    setInterval(fetchPolls, 5000);  // Refresh polls every 5 seconds
+    setInterval(fetchPolls, 5000);
 }
 
-// Run the initialization when the page loads
 window.onload = init;

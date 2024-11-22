@@ -8,13 +8,12 @@ async function createPollTopic(pollId, numOptions) {
 
     const topicName = `poll_${pollId}`;
 
-    // Create topic with partitions equal to the number of options
     await admin.createTopics({
         topics: [
             {
                 topic: topicName,
-                numPartitions: numOptions, // Number of partitions = number of options
-                replicationFactor: 1, // Adjust based on your Kafka cluster
+                numPartitions: numOptions,
+                replicationFactor: 1, 
             },
         ],
     });
@@ -22,5 +21,4 @@ async function createPollTopic(pollId, numOptions) {
     console.log(`Topic created: ${topicName} with ${numOptions} partitions`);
     await admin.disconnect();
 }
-
-module.exports = { createPollTopic };
+createPollTopic(process.argv[2],4)

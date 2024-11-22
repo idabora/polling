@@ -3,13 +3,20 @@ const mongoose = require("mongoose");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const path = require('path')
+const path = require('path');
+const { kafka } = require("./client"); 
+const { castVote } = require('./producer')
 
 // Models
-const Poll = require("./models/Poll");
-const Leaderboard = require("./models/Leaderboard");
+const Poll = require("./models/poll");
+const Leaderboard = require("./models/leaderboard");
 
+const producer = kafka.producer();
+producer.connect();
 require("dotenv").config();
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log("MongoDB connected"))
+    .catch(err => console.error("MongoDB connection error:", err));
 
 const app = express();
 const server = http.createServer(app);
@@ -21,62 +28,19 @@ app.use(cors());
 const staticPath = path.join(__dirname, './public');
 app.use(express.static(staticPath));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("MongoDB connected"))
-    .catch(err => console.error("MongoDB connection error:", err));
-
 // WebSocket Events
 io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
-
-    // Listen for the vote event with userId included
-    socket.on("cast_vote", async ({ pollId, optionId, userId, question, text }) => {
+    socket.on("cast_vote", async ({ pollId, optionId, question, text, userId }) => {
         try {
-            const poll = await Poll.findById(pollId);
-            console.log("****&&&&", poll)
+            const { updatedPoll, updatedLeaderboard } = await castVote(pollId, optionId, question, text, userId);
+            io.emit("poll_updated", updatedPoll);
+            io.emit("leaderboard_updated", updatedLeaderboard);
 
-            // console.log("MAX",max);
-            const option = poll.options.find((o) => o.id === optionId);
-
-            if (option) {
-                option.votes++;
-                await poll.save();
-
-                let arr = poll.options.map(o => o.votes)
-                let max = arr.reduce((max, current) => {
-                    return current > max ? current : max;
-                }, 0);
-                console.log(poll.options);
-                let opt = poll.options.filter(o => o.votes === max)
-                console.log("MAX-", max, opt);
-                const text = opt.length > 1
-                    ? opt.map(option => option.text).join(", ")
-                    : opt[0]?.text || "";
-                // Update the leaderboard (optional: track votes cast by each userId)
-                const leaderboard = await Leaderboard.findByIdAndUpdate(
-                    { _id: userId },
-                    { votesCast: max, username: `User_${userId}`, question, text },
-                    // { $inc: { votesCast: 1 }, username: `User_${userId}`,question ,text},
-                    { upsert: true, new: true }
-                );
-
-                // let lb = await Leaderboard.findByIdAndUpdate(
-                // { _id: userId });
-                // Broadcast updated poll and leaderboard to all clients
-                io.emit("poll_updated", poll);
-                io.emit("leaderboard_updated", leaderboard);
-            }
         } catch (error) {
-            console.error("Error casting vote:", error);
+            console.error("Error producing vote:", error);
         }
     });
-
-    socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-    });
 });
-
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 })
@@ -97,7 +61,6 @@ app.get("/polls", async (req, res) => {
 app.post("/polls", async (req, res) => {
     const { question, options } = req.body;
 
-    // Validate that there is a question and at least 2 options
     if (!question || options.length < 2) {
         return res.status(400).send("Question and at least two options are required.");
     }
@@ -115,15 +78,13 @@ app.post("/polls", async (req, res) => {
         await newPoll.save();
         res.status(201).json(newPoll);
 
-        // Emit the new poll to all connected clients via WebSocket
-        io.emit("new_poll", newPoll);
+        // io.emit("new_poll", newPoll);
     } catch (error) {
         console.error("Error creating poll:", error);
         res.status(500).send("Error creating poll.");
     }
 });
 
-// Fetch and return the leaderboard data
 app.get("/leaderboard", async (req, res) => {
     try {
         const leaderboard = await Leaderboard.find().sort({ votesCast: -1 }).lean();
@@ -135,6 +96,6 @@ app.get("/leaderboard", async (req, res) => {
     }
 });
 
-// Start Server
+module.exports = { io };
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
